@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor() {
             super();
             this.maxSpeed = parseFloat(predatorSpeedSlider.value);
-            this.maxForce = 0.4;
+            this.maxForce = 0.7; // Increased from 0.4 to make it more agile
             this.color = '#ff4d4d';
         }
 
