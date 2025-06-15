@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let flock = [];
     let food = [];
     let predators = [];
+    let fluid;
     const flockSize = 150;
     const foodCloudRadius = 30;
 
@@ -15,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const separationSlider = document.getElementById('separation-slider');
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
-    const tracerSlider = document.getElementById('tracer-slider');
+    const rippleDampingSlider = document.getElementById('ripple-damping-slider');
     const foodLifespanSlider = document.getElementById('food-lifespan-slider');
     const predatorCheckbox = document.getElementById('predator-checkbox');
     const predatorSpeedSlider = document.getElementById('predator-speed-slider');
@@ -25,7 +26,58 @@ document.addEventListener('DOMContentLoaded', () => {
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
+        fluid = new Fluid(canvas.width, canvas.height, 8); // Re-initialize fluid on resize
     }
+    
+    // --- FLUID CLASS ---
+    class Fluid {
+        constructor(width, height, resolution) {
+            this.resolution = resolution;
+            this.cols = Math.floor(width / this.resolution);
+            this.rows = Math.floor(height / this.resolution);
+
+            this.current = new Array(this.cols).fill(0).map(() => new Array(this.rows).fill(0));
+            this.previous = new Array(this.cols).fill(0).map(() => new Array(this.rows).fill(0));
+        }
+
+        disturb(x, y, pressure) {
+            const col = Math.floor(x / this.resolution);
+            const row = Math.floor(y / this.resolution);
+            if (col > 1 && col < this.cols - 1 && row > 1 && row < this.rows - 1) {
+                this.previous[col][row] = pressure;
+            }
+        }
+
+        update() {
+            let damping = parseFloat(rippleDampingSlider.value);
+            for (let i = 1; i < this.cols - 1; i++) {
+                for (let j = 1; j < this.rows - 1; j++) {
+                    this.current[i][j] =
+                        (this.previous[i - 1][j] +
+                         this.previous[i + 1][j] +
+                         this.previous[i][j - 1] +
+                         this.previous[i][j + 1]) / 2 - this.current[i][j];
+                    this.current[i][j] *= damping;
+                }
+            }
+            let temp = this.previous;
+            this.previous = this.current;
+            this.current = temp;
+        }
+
+        render(ctx) {
+            for (let i = 0; i < this.cols; i++) {
+                for (let j = 0; j < this.rows; j++) {
+                    const value = this.current[i][j];
+                    const blue = Math.min(255, Math.abs(value * 5));
+                    const brightness = Math.min(255, Math.abs(value * 2));
+                    ctx.fillStyle = `rgb(${brightness}, ${brightness}, ${blue})`;
+                    ctx.fillRect(i * this.resolution, j * this.resolution, this.resolution, this.resolution);
+                }
+            }
+        }
+    }
+
 
     // --- FOOD CLASS ---
     class Food {
@@ -54,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
+    
     // --- BASE MOVING AGENT CLASS ---
     class Agent {
          constructor() {
@@ -62,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.velocity = { x: Math.random() * 4 - 2, y: Math.random() * 4 - 2 };
             this.acceleration = { x: 0, y: 0 };
         }
-
+        
         edges() {
             if (this.position.x > canvas.width) this.position.x = 0;
             else if (this.position.x < 0) this.position.x = canvas.width;
@@ -74,18 +126,27 @@ document.addEventListener('DOMContentLoaded', () => {
             this.acceleration.x += force.x;
             this.acceleration.y += force.y;
         }
-
+        
         update() {
+            const prevX = this.position.x;
+            const prevY = this.position.y;
+            
             this.position.x += this.velocity.x;
             this.position.y += this.velocity.y;
             this.velocity.x += this.acceleration.x;
             this.velocity.y += this.acceleration.y;
+
             const mag = Math.hypot(this.velocity.x, this.velocity.y);
             if (mag > this.maxSpeed) {
                 this.velocity.x = (this.velocity.x / mag) * this.maxSpeed;
                 this.velocity.y = (this.velocity.y / mag) * this.maxSpeed;
             }
             this.acceleration = { x: 0, y: 0 };
+            
+            const moved = Math.hypot(this.position.x - prevX, this.position.y - prevY);
+            if (fluid && moved > 1) {
+                fluid.disturb(this.position.x, this.position.y, 500);
+            }
         }
     }
 
@@ -94,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor() {
             super();
             this.maxSpeed = parseFloat(predatorSpeedSlider.value);
-            this.maxForce = 0.7; // Increased from 0.4 to make it more agile
+            this.maxForce = 0.7;
             this.color = '#ff4d4d';
         }
 
@@ -131,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hunt(boids) {
             let closestBoid = null;
             let minDistance = Infinity;
+            if (boids.length === 0) return { x: 0, y: 0 };
             for (let boid of boids) {
                 let d = Math.hypot(this.position.x - boid.position.x, this.position.y - boid.position.y);
                 if (d < minDistance) {
@@ -361,8 +423,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- MAIN SIMULATION ---
     function init() {
         resizeCanvas();
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
         flock = Array.from({ length: flockSize }, () => new Boid());
         food = [];
         predators = predatorCheckbox.checked ? [new Predator()] : [];
@@ -370,10 +430,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function animate() {
-        ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        fluid.update();
+        fluid.render(ctx);
+        
         food = food.filter(f => f.lifespan > 0);
-
         food.forEach(f => f.draw(ctx));
 
         predators.forEach(p => {
@@ -402,7 +462,10 @@ document.addEventListener('DOMContentLoaded', () => {
         init();
     });
     spawnFoodBtn.addEventListener('click', () => {
-        food.push(new Food(Math.random() * canvas.width, Math.random() * canvas.height));
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        food.push(new Food(x, y));
+        fluid.disturb(x,y, 1000);
     });
     predatorCheckbox.addEventListener('change', () => {
         predators = predatorCheckbox.checked ? [new Predator()] : [];
@@ -414,10 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     canvas.addEventListener('click', (event) => {
-        const boid = new Boid();
-        boid.position.x = event.offsetX;
-        boid.position.y = event.offsetY;
-        flock.push(boid);
+        fluid.disturb(event.offsetX, event.offsetY, 1000);
     });
 
     init();
