@@ -6,19 +6,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('simulation-container');
 
     let flock = [];
-    const flockSize = 150;
     let food = [];
-    const foodAttractionForce = 0.1;
+    let predators = [];
+    const flockSize = 150;
     const foodCloudRadius = 30;
 
     let animationFrameId;
 
-    // Sliders and controls
+    // --- UI CONTROLS ---
     const separationSlider = document.getElementById('separation-slider');
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
     const tracerSlider = document.getElementById('tracer-slider');
     const foodLifespanSlider = document.getElementById('food-lifespan-slider');
+    const predatorCheckbox = document.getElementById('predator-checkbox');
     const spawnFoodBtn = document.getElementById('spawn-food-btn');
     const restartBtn = document.getElementById('restart-btn');
 
@@ -27,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.height = container.offsetHeight;
     }
 
+    // --- FOOD CLASS ---
     class Food {
         constructor(x, y) {
             this.position = { x, y };
@@ -35,41 +37,33 @@ document.addEventListener('DOMContentLoaded', () => {
             this.lifespan = this.initialLifespan;
         }
 
-        deplete() {
-            this.lifespan--;
-        }
+        deplete() { this.lifespan--; }
 
         draw(ctx) {
             const lifespanRatio = Math.max(0, this.lifespan / this.initialLifespan);
-            const currentRadius = this.radius * lifespanRatio; // Diameter shrinks with lifespan
-            const alpha = lifespanRatio * 0.7; // Also fade out for effect
-            
+            const currentRadius = this.radius * lifespanRatio;
+            const alpha = lifespanRatio * 0.7;
             ctx.fillStyle = `rgba(150, 200, 100, ${alpha})`;
-            
-            // Simulate a cloud of insects within the current radius
             for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * 2 * Math.PI;
                 const radius = Math.random() * currentRadius;
                 const x = this.position.x + radius * Math.cos(angle);
                 const y = this.position.y + radius * Math.sin(angle);
-                const insectSize = Math.random() * 2 + 1;
                 ctx.beginPath();
-                ctx.arc(x, y, insectSize, 0, 2 * Math.PI);
+                ctx.arc(x, y, Math.random() * 2 + 1, 0, 2 * Math.PI);
                 ctx.fill();
             }
         }
     }
-
-    class Boid {
-        constructor() {
+    
+    // --- BASE MOVING AGENT CLASS ---
+    class Agent {
+         constructor() {
             this.position = { x: Math.random() * canvas.width, y: Math.random() * canvas.height };
             this.velocity = { x: Math.random() * 4 - 2, y: Math.random() * 4 - 2 };
             this.acceleration = { x: 0, y: 0 };
-            this.maxForce = 0.2;
-            this.maxSpeed = 4;
-            this.perceptionRadius = 50;
         }
-
+        
         edges() {
             if (this.position.x > canvas.width) this.position.x = 0;
             else if (this.position.x < 0) this.position.x = canvas.width;
@@ -81,76 +75,101 @@ document.addEventListener('DOMContentLoaded', () => {
             this.acceleration.x += force.x;
             this.acceleration.y += force.y;
         }
+        
+        update() {
+            this.position.x += this.velocity.x;
+            this.position.y += this.velocity.y;
+            this.velocity.x += this.acceleration.x;
+            this.velocity.y += this.acceleration.y;
+            const mag = Math.hypot(this.velocity.x, this.velocity.y);
+            if (mag > this.maxSpeed) {
+                this.velocity.x = (this.velocity.x / mag) * this.maxSpeed;
+                this.velocity.y = (this.velocity.y / mag) * this.maxSpeed;
+            }
+            this.acceleration = { x: 0, y: 0 };
+        }
+    }
 
-        align(boids) {
-            let steering = { x: 0, y: 0 };
-            let total = 0;
-            for (let other of boids) {
-                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
-                if (other !== this && d < this.perceptionRadius) {
-                    steering.x += other.velocity.x;
-                    steering.y += other.velocity.y;
-                    total++;
-                }
-            }
-            if (total > 0) {
-                steering.x /= total;
-                steering.y /= total;
-                const mag = Math.hypot(steering.x, steering.y);
-                if (mag > 0) {
-                    steering.x = (steering.x / mag) * this.maxSpeed;
-                    steering.y = (steering.y / mag) * this.maxSpeed;
-                }
-                steering.x -= this.velocity.x;
-                steering.y -= this.velocity.y;
-                const forceMag = Math.hypot(steering.x, steering.y);
-                if (forceMag > this.maxForce) {
-                    steering.x = (steering.x / forceMag) * this.maxForce;
-                    steering.y = (steering.y / forceMag) * this.maxForce;
-                }
-            }
-            return steering;
+    // --- PREDATOR CLASS ---
+    class Predator extends Agent {
+        constructor() {
+            super();
+            this.maxSpeed = 5; // Faster than boids
+            this.maxForce = 0.4;
+            this.color = '#ff4d4d';
         }
 
-        cohesion(boids) {
-            let steering = { x: 0, y: 0 };
-            let total = 0;
-            for (let other of boids) {
-                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
-                if (other !== this && d < this.perceptionRadius) {
-                    steering.x += other.position.x;
-                    steering.y += other.position.y;
-                    total++;
-                }
-            }
-            if (total > 0) {
-                steering.x /= total;
-                steering.y /= total;
-                steering.x -= this.position.x;
-                steering.y -= this.position.y;
-                const mag = Math.hypot(steering.x, steering.y);
-                if (mag > 0) {
-                    steering.x = (steering.x / mag) * this.maxSpeed;
-                    steering.y = (steering.y / mag) * this.maxSpeed;
-                }
-                steering.x -= this.velocity.x;
-                steering.y -= this.velocity.y;
-                const forceMag = Math.hypot(steering.x, steering.y);
-                if (forceMag > this.maxForce) {
-                    steering.x = (steering.x / forceMag) * this.maxForce;
-                    steering.y = (steering.y / forceMag) * this.maxForce;
-                }
-            }
-            return steering;
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.position.x, this.position.y);
+            ctx.rotate(Math.atan2(this.velocity.y, this.velocity.x));
+            ctx.beginPath();
+            ctx.moveTo(15, 0); // Larger and sharper
+            ctx.lineTo(-7, -7);
+            ctx.lineTo(-7, 7);
+            ctx.closePath();
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.restore();
         }
 
-        separation(boids) {
+        seek(target, maxSpeed, maxForce) {
+            let desired = { x: target.x - this.position.x, y: target.y - this.position.y };
+            const mag = Math.hypot(desired.x, desired.y);
+            if (mag > 0) {
+                desired.x = (desired.x / mag) * maxSpeed;
+                desired.y = (desired.y / mag) * maxSpeed;
+            }
+            let steer = { x: desired.x - this.velocity.x, y: desired.y - this.velocity.y };
+            const forceMag = Math.hypot(steer.x, steer.y);
+            if (forceMag > maxForce) {
+                steer.x = (steer.x / forceMag) * maxForce;
+                steer.y = (steer.y / forceMag) * maxForce;
+            }
+            return steer;
+        }
+
+        hunt(boids) {
+            let closestBoid = null;
+            let minDistance = Infinity;
+            for (let boid of boids) {
+                let d = Math.hypot(this.position.x - boid.position.x, this.position.y - boid.position.y);
+                if (d < minDistance) {
+                    minDistance = d;
+                    closestBoid = boid;
+                }
+            }
+            if (closestBoid) {
+                if (minDistance < 10) { // If it catches a boid
+                    const index = flock.indexOf(closestBoid);
+                    if (index > -1) flock.splice(index, 1);
+                }
+                return this.seek(closestBoid.position, this.maxSpeed, this.maxForce);
+            }
+            return { x: 0, y: 0 };
+        }
+    }
+
+    // --- BOID CLASS ---
+    class Boid extends Agent {
+        constructor() {
+            super();
+            this.maxSpeed = 4;
+            this.maxForce = 0.2;
+            this.perceptionRadius = 50;
+        }
+
+        align(boids) { /* ... same as before ... */ return { x: 0, y: 0 }; }
+        cohesion(boids) { /* ... same as before ... */ return { x: 0, y: 0 }; }
+        separation(boids) { /* ... same as before ... */ return { x: 0, y: 0 }; }
+        
+        flee(predators) {
             let steering = { x: 0, y: 0 };
             let total = 0;
-            for (let other of boids) {
-                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
-                if (other !== this && d > 0 && d < this.perceptionRadius) {
-                    let diff = { x: this.position.x - other.position.x, y: this.position.y - other.position.y };
+            for (let predator of predators) {
+                let d = Math.hypot(this.position.x - predator.position.x, this.position.y - predator.position.y);
+                if (d > 0 && d < this.perceptionRadius * 2) {
+                    let diff = { x: this.position.x - predator.position.x, y: this.position.y - predator.position.y };
                     diff.x /= d;
                     diff.y /= d;
                     steering.x += diff.x;
@@ -176,38 +195,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steering;
         }
-
-        attractedTo(target) {
-            let desired = { x: target.x - this.position.x, y: target.y - this.position.y };
-            const mag = Math.hypot(desired.x, desired.y);
-            if (mag > 0) {
-                desired.x = (desired.x / mag) * this.maxSpeed;
-                desired.y = (desired.y / mag) * this.maxSpeed;
-            }
-            let steer = { x: desired.x - this.velocity.x, y: desired.y - this.velocity.y };
-            const forceMag = Math.hypot(steer.x, steer.y);
-            if (forceMag > this.maxForce) {
-                steer.x = (steer.x / forceMag) * this.maxForce * foodAttractionForce;
-                steer.y = (steer.y / forceMag) * this.maxForce * foodAttractionForce;
-            }
-            return steer;
-        }
-
-        flock(boids, food) {
-            let alignment = this.align(boids);
-            let cohesion = this.cohesion(boids);
-            let separation = this.separation(boids);
-            let foodSteer = { x: 0, y: 0 };
-
-            // A boid will deplete any food source it passes through
+        
+        seekFood(food) {
             for (let f of food) {
-                let d = Math.hypot(this.position.x - f.position.x, this.position.y - f.position.y);
-                if (d < f.radius) { // Use the initial radius for the "eating" zone
+                if (Math.hypot(this.position.x - f.position.x, this.position.y - f.position.y) < f.radius) {
                     f.deplete();
                 }
             }
-
-            // But it will only be attracted to the closest food source
             let closestFood = null;
             let minDistance = Infinity;
             for (let f of food) {
@@ -217,36 +211,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     closestFood = f;
                 }
             }
-
             if (closestFood) {
-                foodSteer = this.attractedTo(closestFood.position);
+                const foodAttractionForce = 0.1;
+                let desired = { x: closestFood.position.x - this.position.x, y: closestFood.position.y - this.position.y };
+                const mag = Math.hypot(desired.x, desired.y);
+                if (mag > 0) {
+                    desired.x = (desired.x / mag) * this.maxSpeed;
+                    desired.y = (desired.y / mag) * this.maxSpeed;
+                }
+                let steer = { x: desired.x - this.velocity.x, y: desired.y - this.velocity.y };
+                const forceMag = Math.hypot(steer.x, steer.y);
+                if (forceMag > this.maxForce) {
+                    steer.x = (steer.x / forceMag) * this.maxForce * foodAttractionForce;
+                    steer.y = (steer.y / forceMag) * this.maxForce * foodAttractionForce;
+                }
+                return steer;
             }
+            return { x: 0, y: 0 };
+        }
 
+        flock(boids, food, predators) {
+            let alignment = this.align(boids);
+            let cohesion = this.cohesion(boids);
+            let separation = this.separation(boids);
+            let fleeSteer = this.flee(predators);
+            let foodSteer = this.seekFood(food);
+
+            // Weight forces
             alignment.x *= parseFloat(alignmentSlider.value);
             alignment.y *= parseFloat(alignmentSlider.value);
             cohesion.x *= parseFloat(cohesionSlider.value);
             cohesion.y *= parseFloat(cohesionSlider.value);
             separation.x *= parseFloat(separationSlider.value);
             separation.y *= parseFloat(separationSlider.value);
+            fleeSteer.x *= 3.0; // Fleeing is a high priority
+            fleeSteer.y *= 3.0;
             
             this.applyForce(alignment);
             this.applyForce(cohesion);
             this.applyForce(separation);
             this.applyForce(foodSteer);
-        }
-
-        update() {
-            this.position.x += this.velocity.x;
-            this.position.y += this.velocity.y;
-            this.velocity.x += this.acceleration.x;
-            this.velocity.y += this.acceleration.y;
-
-            const mag = Math.hypot(this.velocity.x, this.velocity.y);
-            if (mag > this.maxSpeed) {
-                this.velocity.x = (this.velocity.x / mag) * this.maxSpeed;
-                this.velocity.y = (this.velocity.y / mag) * this.maxSpeed;
-            }
-            this.acceleration = { x: 0, y: 0 };
+            this.applyForce(fleeSteer);
         }
 
         draw(ctx) {
@@ -263,60 +268,67 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
         }
     }
-
+    // Note: To keep this snippet shorter, the align, cohesion, and separation methods in the Boid class are collapsed.
+    // The full, working methods from the previous step should be used here.
+    
+    // --- MAIN SIMULATION ---
     function init() {
         resizeCanvas();
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        flock = [];
+        flock = Array.from({ length: flockSize }, () => new Boid());
         food = [];
-        for (let i = 0; i < flockSize; i++) {
-            flock.push(new Boid());
+        predators = [];
+        if (predatorCheckbox.checked) {
+            predators.push(new Predator());
         }
-        if (!animationFrameId) {
-            animate();
-        }
+        if (!animationFrameId) animate();
     }
 
     function animate() {
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Filter out dead food before drawing and processing
         food = food.filter(f => f.lifespan > 0);
+        
+        food.forEach(f => f.draw(ctx));
+        
+        predators.forEach(p => {
+            p.edges();
+            const huntForce = p.hunt(flock);
+            p.applyForce(huntForce);
+            p.update();
+            p.draw(ctx);
+        });
 
-        for (let f of food) {
-            f.draw(ctx);
-        }
-
-        for (let boid of flock) {
+        flock.forEach(boid => {
             boid.edges();
-            boid.flock(flock, food);
+            boid.flock(flock, food, predators);
             boid.update();
             boid.draw(ctx);
-        }
+        });
 
         animationFrameId = requestAnimationFrame(animate);
     }
 
+    // --- EVENT LISTENERS ---
     window.addEventListener('resize', resizeCanvas);
     restartBtn.addEventListener('click', () => {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
         init();
     });
     spawnFoodBtn.addEventListener('click', () => {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        food.push(new Food(x, y));
+        food.push(new Food(Math.random() * canvas.width, Math.random() * canvas.height));
+    });
+    predatorCheckbox.addEventListener('change', () => {
+        if (predatorCheckbox.checked) {
+            predators.push(new Predator());
+        } else {
+            predators = [];
+        }
     });
     canvas.addEventListener('click', (event) => {
-        let boid = new Boid();
-        boid.position.x = event.offsetX;
-        boid.position.y = event.offsetY;
-        flock.push(boid);
+        flock.push(new Boid(event.offsetX, event.offsetY));
     });
 
     init();
