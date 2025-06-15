@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boids: Flocking Simulation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div id="simulation-container">
+            <canvas id="boids-canvas"></canvas>
+        </div>
+        <div id="ui-panel">
+            <h2>Controls</h2>
+            <div class="control-group">
+                <label for="separation-slider">Separation</label>
+                <input type="range" id="separation-slider" min="0" max="2" step="0.1" value="1.5">
+            </div>
+            <div class="control-group">
+                <label for="alignment-slider">Alignment</label>
+                <input type="range" id="alignment-slider" min="0" max="2" step="0.1" value="1.0">
+            </div>
+            <div class="control-group">
+                <label for="cohesion-slider">Cohesion</label>
+                <input type="range" id="cohesion-slider" min="0" max="2" step="0.1" value="1.0">
+            </div>
+            <button id="restart-btn">Restart</button>
+        </div>
+    </div>
+    <script src="boids.js"></script>
+</body>
+</html>
