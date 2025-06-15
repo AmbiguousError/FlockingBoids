@@ -1,5 +1,3 @@
-// boids.js
-
 document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('boids-canvas');
     const ctx = canvas.getContext('2d');
@@ -113,18 +111,18 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
         }
 
-        seek(target, maxSpeed, maxForce) {
+        seek(target) {
             let desired = { x: target.x - this.position.x, y: target.y - this.position.y };
             const mag = Math.hypot(desired.x, desired.y);
             if (mag > 0) {
-                desired.x = (desired.x / mag) * maxSpeed;
-                desired.y = (desired.y / mag) * maxSpeed;
+                desired.x = (desired.x / mag) * this.maxSpeed;
+                desired.y = (desired.y / mag) * this.maxSpeed;
             }
             let steer = { x: desired.x - this.velocity.x, y: desired.y - this.velocity.y };
             const forceMag = Math.hypot(steer.x, steer.y);
-            if (forceMag > maxForce) {
-                steer.x = (steer.x / forceMag) * maxForce;
-                steer.y = (steer.y / forceMag) * maxForce;
+            if (forceMag > this.maxForce) {
+                steer.x = (steer.x / forceMag) * this.maxForce;
+                steer.y = (steer.y / forceMag) * this.maxForce;
             }
             return steer;
         }
@@ -144,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const index = flock.indexOf(closestBoid);
                     if (index > -1) flock.splice(index, 1);
                 }
-                return this.seek(closestBoid.position, this.maxSpeed, this.maxForce);
+                return this.seek(closestBoid.position);
             }
             return { x: 0, y: 0 };
         }
@@ -159,9 +157,100 @@ document.addEventListener('DOMContentLoaded', () => {
             this.perceptionRadius = 50;
         }
 
-        align(boids) { /* ... same as before ... */ return { x: 0, y: 0 }; }
-        cohesion(boids) { /* ... same as before ... */ return { x: 0, y: 0 }; }
-        separation(boids) { /* ... same as before ... */ return { x: 0, y: 0 }; }
+        align(boids) {
+            let steering = { x: 0, y: 0 };
+            let total = 0;
+            for (let other of boids) {
+                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
+                if (other !== this && d < this.perceptionRadius) {
+                    steering.x += other.velocity.x;
+                    steering.y += other.velocity.y;
+                    total++;
+                }
+            }
+            if (total > 0) {
+                steering.x /= total;
+                steering.y /= total;
+                const mag = Math.hypot(steering.x, steering.y);
+                if (mag > 0) {
+                    steering.x = (steering.x / mag) * this.maxSpeed;
+                    steering.y = (steering.y / mag) * this.maxSpeed;
+                }
+                steering.x -= this.velocity.x;
+                steering.y -= this.velocity.y;
+                const forceMag = Math.hypot(steering.x, steering.y);
+                if (forceMag > this.maxForce) {
+                    steering.x = (steering.x / forceMag) * this.maxForce;
+                    steering.y = (steering.y / forceMag) * this.maxForce;
+                }
+            }
+            return steering;
+        }
+
+        cohesion(boids) {
+            let steering = { x: 0, y: 0 };
+            let total = 0;
+            for (let other of boids) {
+                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
+                if (other !== this && d < this.perceptionRadius) {
+                    steering.x += other.position.x;
+                    steering.y += other.position.y;
+                    total++;
+                }
+            }
+            if (total > 0) {
+                steering.x /= total;
+                steering.y /= total;
+                steering.x -= this.position.x;
+                steering.y -= this.position.y;
+                const mag = Math.hypot(steering.x, steering.y);
+                if (mag > 0) {
+                    steering.x = (steering.x / mag) * this.maxSpeed;
+                    steering.y = (steering.y / mag) * this.maxSpeed;
+                }
+                steering.x -= this.velocity.x;
+                steering.y -= this.velocity.y;
+                const forceMag = Math.hypot(steering.x, steering.y);
+                if (forceMag > this.maxForce) {
+                    steering.x = (steering.x / forceMag) * this.maxForce;
+                    steering.y = (steering.y / forceMag) * this.maxForce;
+                }
+            }
+            return steering;
+        }
+
+        separation(boids) {
+            let steering = { x: 0, y: 0 };
+            let total = 0;
+            for (let other of boids) {
+                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
+                if (other !== this && d > 0 && d < this.perceptionRadius) {
+                    let diff = { x: this.position.x - other.position.x, y: this.position.y - other.position.y };
+                    diff.x /= d;
+                    diff.y /= d;
+                    steering.x += diff.x;
+                    steering.y += diff.y;
+                    total++;
+                }
+            }
+            if (total > 0) {
+                steering.x /= total;
+                steering.y /= total;
+                const mag = Math.hypot(steering.x, steering.y);
+                if (mag > 0) {
+                    steering.x = (steering.x / mag) * this.maxSpeed;
+                    steering.y = (steering.y / mag) * this.maxSpeed;
+                }
+                steering.x -= this.velocity.x;
+                steering.y -= this.velocity.y;
+                const forceMag = Math.hypot(steering.x, steering.y);
+                if (forceMag > this.maxForce) {
+                    steering.x = (steering.x / forceMag) * this.maxForce;
+                    steering.y = (steering.y / forceMag) * this.maxForce;
+                }
+            }
+            return steering;
+        }
         
         flee(predators) {
             let steering = { x: 0, y: 0 };
@@ -268,8 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
         }
     }
-    // Note: To keep this snippet shorter, the align, cohesion, and separation methods in the Boid class are collapsed.
-    // The full, working methods from the previous step should be used here.
     
     // --- MAIN SIMULATION ---
     function init() {
@@ -322,13 +409,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     predatorCheckbox.addEventListener('change', () => {
         if (predatorCheckbox.checked) {
-            predators.push(new Predator());
+            if (predators.length === 0) { // Avoid adding multiple predators
+                 predators.push(new Predator());
+            }
         } else {
             predators = [];
         }
     });
     canvas.addEventListener('click', (event) => {
-        flock.push(new Boid(event.offsetX, event.offsetY));
+        const boid = new Boid();
+        boid.position.x = event.offsetX;
+        boid.position.y = event.offsetY;
+        flock.push(boid);
     });
 
     init();
