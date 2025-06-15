@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let flock = [];
     const flockSize = 150;
+    let animationFrameId;
 
     // Sliders and controls
     const separationSlider = document.getElementById('separation-slider');
@@ -31,16 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         edges() {
-            if (this.position.x > canvas.width) {
-                this.position.x = 0;
-            } else if (this.position.x < 0) {
-                this.position.x = canvas.width;
-            }
-            if (this.position.y > canvas.height) {
-                this.position.y = 0;
-            } else if (this.position.y < 0) {
-                this.position.y = canvas.height;
-            }
+            if (this.position.x > canvas.width) this.position.x = 0;
+            else if (this.position.x < 0) this.position.x = canvas.width;
+            if (this.position.y > canvas.height) this.position.y = 0;
+            else if (this.position.y < 0) this.position.y = canvas.height;
         }
 
         applyForce(force) {
@@ -48,11 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
             this.acceleration.y += force.y;
         }
 
+        // Steer towards the average heading of local flockmates
         align(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
             for (let other of boids) {
-                let d = Math.sqrt(Math.pow(this.position.x - other.position.x, 2) + Math.pow(this.position.y - other.position.y, 2));
+                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
                 if (other !== this && d < this.perceptionRadius) {
                     steering.x += other.velocity.x;
                     steering.y += other.velocity.y;
@@ -62,13 +58,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (total > 0) {
                 steering.x /= total;
                 steering.y /= total;
-                const speed = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
-                steering.x = (steering.x / speed) * this.maxSpeed;
-                steering.y = (steering.y / speed) * this.maxSpeed;
+                const mag = Math.hypot(steering.x, steering.y);
+                if (mag > 0) {
+                    steering.x = (steering.x / mag) * this.maxSpeed;
+                    steering.y = (steering.y / mag) * this.maxSpeed;
+                }
                 steering.x -= this.velocity.x;
                 steering.y -= this.velocity.y;
-                const forceMag = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
-                if(forceMag > this.maxForce) {
+                const forceMag = Math.hypot(steering.x, steering.y);
+                if (forceMag > this.maxForce) {
                     steering.x = (steering.x / forceMag) * this.maxForce;
                     steering.y = (steering.y / forceMag) * this.maxForce;
                 }
@@ -76,11 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return steering;
         }
 
+        // Steer to move toward the average position of local flockmates
         cohesion(boids) {
-             let steering = { x: 0, y: 0 };
+            let steering = { x: 0, y: 0 };
             let total = 0;
             for (let other of boids) {
-                 let d = Math.sqrt(Math.pow(this.position.x - other.position.x, 2) + Math.pow(this.position.y - other.position.y, 2));
+                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
                 if (other !== this && d < this.perceptionRadius) {
                     steering.x += other.position.x;
                     steering.y += other.position.y;
@@ -92,13 +91,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 steering.y /= total;
                 steering.x -= this.position.x;
                 steering.y -= this.position.y;
-                const speed = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
-                steering.x = (steering.x / speed) * this.maxSpeed;
-                steering.y = (steering.y / speed) * this.maxSpeed;
+                const mag = Math.hypot(steering.x, steering.y);
+                if (mag > 0) {
+                    steering.x = (steering.x / mag) * this.maxSpeed;
+                    steering.y = (steering.y / mag) * this.maxSpeed;
+                }
                 steering.x -= this.velocity.x;
                 steering.y -= this.velocity.y;
-                const forceMag = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
-                if(forceMag > this.maxForce) {
+                const forceMag = Math.hypot(steering.x, steering.y);
+                if (forceMag > this.maxForce) {
                     steering.x = (steering.x / forceMag) * this.maxForce;
                     steering.y = (steering.y / forceMag) * this.maxForce;
                 }
@@ -106,12 +107,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return steering;
         }
 
+        // Steer to avoid crowding local flockmates
         separation(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
             for (let other of boids) {
-                let d = Math.sqrt(Math.pow(this.position.x - other.position.x, 2) + Math.pow(this.position.y - other.position.y, 2));
-                if (other !== this && d < this.perceptionRadius) {
+                let d = Math.hypot(this.position.x - other.position.x, this.position.y - other.position.y);
+                if (other !== this && d > 0 && d < this.perceptionRadius) {
                     let diff = { x: this.position.x - other.position.x, y: this.position.y - other.position.y };
                     diff.x /= d;
                     diff.y /= d;
@@ -120,16 +122,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     total++;
                 }
             }
-             if (total > 0) {
+            if (total > 0) {
                 steering.x /= total;
                 steering.y /= total;
-                const speed = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
-                steering.x = (steering.x / speed) * this.maxSpeed;
-                steering.y = (steering.y / speed) * this.maxSpeed;
+                const mag = Math.hypot(steering.x, steering.y);
+                if (mag > 0) {
+                    steering.x = (steering.x / mag) * this.maxSpeed;
+                    steering.y = (steering.y / mag) * this.maxSpeed;
+                }
                 steering.x -= this.velocity.x;
                 steering.y -= this.velocity.y;
-                const forceMag = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
-                if(forceMag > this.maxForce) {
+                const forceMag = Math.hypot(steering.x, steering.y);
+                if (forceMag > this.maxForce) {
                     steering.x = (steering.x / forceMag) * this.maxForce;
                     steering.y = (steering.y / forceMag) * this.maxForce;
                 }
@@ -142,12 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let cohesion = this.cohesion(boids);
             let separation = this.separation(boids);
 
-            separation.x *= separationSlider.value;
-            separation.y *= separationSlider.value;
-            alignment.x *= alignmentSlider.value;
-            alignment.y *= alignmentSlider.value;
-            cohesion.x *= cohesionSlider.value;
-            cohesion.y *= cohesionSlider.value;
+            alignment.x *= parseFloat(alignmentSlider.value);
+            alignment.y *= parseFloat(alignmentSlider.value);
+            cohesion.x *= parseFloat(cohesionSlider.value);
+            cohesion.y *= parseFloat(cohesionSlider.value);
+            separation.x *= parseFloat(separationSlider.value);
+            separation.y *= parseFloat(separationSlider.value);
 
             this.applyForce(alignment);
             this.applyForce(cohesion);
@@ -160,17 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
             this.velocity.x += this.acceleration.x;
             this.velocity.y += this.acceleration.y;
 
-            const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
-            if (speed > this.maxSpeed) {
-                this.velocity.x = (this.velocity.x / speed) * this.maxSpeed;
-                this.velocity.y = (this.velocity.y / speed) * this.maxSpeed;
+            const mag = Math.hypot(this.velocity.x, this.velocity.y);
+            if (mag > this.maxSpeed) {
+                this.velocity.x = (this.velocity.x / mag) * this.maxSpeed;
+                this.velocity.y = (this.velocity.y / mag) * this.maxSpeed;
             }
-
             this.acceleration = { x: 0, y: 0 };
         }
 
         draw(ctx) {
-            // Draw the boid itself
             ctx.save();
             ctx.translate(this.position.x, this.position.y);
             ctx.rotate(Math.atan2(this.velocity.y, this.velocity.x));
@@ -194,14 +196,13 @@ document.addEventListener('DOMContentLoaded', () => {
             flock.push(new Boid());
         }
         if (!animationFrameId) {
-           animate();
+            animate();
         }
     }
 
-    let animationFrameId;
     function animate() {
-        // Draw a semi-transparent rectangle to create the trailing effect
-        ctx.fillStyle = `rgba(0, 0, 0, ${1 - tracerSlider.value})`;
+        // Higher slider value gives longer trail (less fade)
+        ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         for (let boid of flock) {
@@ -216,8 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('resize', resizeCanvas);
     restartBtn.addEventListener('click', () => {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
         init();
     });
     canvas.addEventListener('click', (event) => {
@@ -225,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
         boid.position.x = event.offsetX;
         boid.position.y = event.offsetY;
         flock.push(boid);
-    })
+    });
 
     init();
 });
