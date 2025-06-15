@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw(ctx) {
-            ctx.beginPath();
+            ctx.fillStyle = 'rgba(150, 200, 100, 0.7)';
             // Simulate a cloud of insects with many small circles
             for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * 2 * Math.PI;
@@ -41,10 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const x = this.position.x + radius * Math.cos(angle);
                 const y = this.position.y + radius * Math.sin(angle);
                 const insectSize = Math.random() * 2 + 1;
+                ctx.beginPath(); // Start a new path for each circle
                 ctx.arc(x, y, insectSize, 0, 2 * Math.PI);
+                ctx.fill(); // Fill each circle individually
             }
-            ctx.fillStyle = 'rgba(150, 200, 100, 0.7)';
-            ctx.fill();
         }
     }
 
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let steer = { x: desired.x - this.velocity.x, y: desired.y - this.velocity.y };
             const forceMag = Math.hypot(steer.x, steer.y);
             if (forceMag > this.maxForce) {
-                steer.x = (steer.x / forceMag) * this.maxForce * foodAttractionForce; // Reduced force for smoother approach
+                steer.x = (steer.x / forceMag) * this.maxForce * foodAttractionForce;
                 steer.y = (steer.y / forceMag) * this.maxForce * foodAttractionForce;
             }
             return steer;
@@ -187,7 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let separation = this.separation(boids);
             let foodSteer = { x: 0, y: 0 };
 
-            // Attract towards the closest food
             let closestFood = null;
             let minDistance = Infinity;
             for (let f of food) {
@@ -208,9 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cohesion.y *= parseFloat(cohesionSlider.value);
             separation.x *= parseFloat(separationSlider.value);
             separation.y *= parseFloat(separationSlider.value);
-            foodSteer.x *= 1;
-            foodSteer.y *= 1;
-
+            
             this.applyForce(alignment);
             this.applyForce(cohesion);
             this.applyForce(separation);
@@ -261,7 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function animate() {
-        // Higher slider value gives longer trail (less fade)
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -288,7 +284,6 @@ document.addEventListener('DOMContentLoaded', () => {
         init();
     });
     spawnFoodBtn.addEventListener('click', () => {
-        // Spawn food at a random location
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
         food.push(new Food(x, y));
