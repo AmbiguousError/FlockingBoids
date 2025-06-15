@@ -40,12 +40,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw(ctx) {
-            const alpha = Math.max(0, this.lifespan / this.initialLifespan) * 0.7;
+            const lifespanRatio = Math.max(0, this.lifespan / this.initialLifespan);
+            const currentRadius = this.radius * lifespanRatio; // Diameter shrinks with lifespan
+            const alpha = lifespanRatio * 0.7; // Also fade out for effect
+            
             ctx.fillStyle = `rgba(150, 200, 100, ${alpha})`;
-            // Simulate a cloud of insects with many small circles
+            
+            // Simulate a cloud of insects within the current radius
             for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * 2 * Math.PI;
-                const radius = Math.random() * this.radius;
+                const radius = Math.random() * currentRadius;
                 const x = this.position.x + radius * Math.cos(angle);
                 const y = this.position.y + radius * Math.sin(angle);
                 const insectSize = Math.random() * 2 + 1;
@@ -195,6 +199,15 @@ document.addEventListener('DOMContentLoaded', () => {
             let separation = this.separation(boids);
             let foodSteer = { x: 0, y: 0 };
 
+            // A boid will deplete any food source it passes through
+            for (let f of food) {
+                let d = Math.hypot(this.position.x - f.position.x, this.position.y - f.position.y);
+                if (d < f.radius) { // Use the initial radius for the "eating" zone
+                    f.deplete();
+                }
+            }
+
+            // But it will only be attracted to the closest food source
             let closestFood = null;
             let minDistance = Infinity;
             for (let f of food) {
@@ -207,9 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (closestFood) {
                 foodSteer = this.attractedTo(closestFood.position);
-                if (minDistance < closestFood.radius) {
-                    closestFood.deplete();
-                }
             }
 
             alignment.x *= parseFloat(alignmentSlider.value);
@@ -272,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Filter out dead food
+        // Filter out dead food before drawing and processing
         food = food.filter(f => f.lifespan > 0);
 
         for (let f of food) {
