@@ -7,6 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let flock = [];
     const flockSize = 150;
+    let food = [];
+    const foodAttractionForce = 0.1;
+    const foodCloudRadius = 30;
+
     let animationFrameId;
 
     // Sliders and controls
@@ -14,11 +18,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
     const tracerSlider = document.getElementById('tracer-slider');
+    const spawnFoodBtn = document.getElementById('spawn-food-btn');
     const restartBtn = document.getElementById('restart-btn');
 
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
+    }
+
+    class Food {
+        constructor(x, y) {
+            this.position = { x, y };
+            this.radius = foodCloudRadius;
+        }
+
+        draw(ctx) {
+            ctx.beginPath();
+            // Simulate a cloud of insects with many small circles
+            for (let i = 0; i < 30; i++) {
+                const angle = Math.random() * 2 * Math.PI;
+                const radius = Math.random() * this.radius;
+                const x = this.position.x + radius * Math.cos(angle);
+                const y = this.position.y + radius * Math.sin(angle);
+                const insectSize = Math.random() * 2 + 1;
+                ctx.arc(x, y, insectSize, 0, 2 * Math.PI);
+            }
+            ctx.fillStyle = 'rgba(150, 200, 100, 0.7)';
+            ctx.fill();
+        }
     }
 
     class Boid {
@@ -43,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.acceleration.y += force.y;
         }
 
-        // Steer towards the average heading of local flockmates
         align(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -74,7 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return steering;
         }
 
-        // Steer to move toward the average position of local flockmates
         cohesion(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -107,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return steering;
         }
 
-        // Steer to avoid crowding local flockmates
         separation(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -141,10 +165,42 @@ document.addEventListener('DOMContentLoaded', () => {
             return steering;
         }
 
-        flock(boids) {
+        attractedTo(target) {
+            let desired = { x: target.x - this.position.x, y: target.y - this.position.y };
+            const mag = Math.hypot(desired.x, desired.y);
+            if (mag > 0) {
+                desired.x = (desired.x / mag) * this.maxSpeed;
+                desired.y = (desired.y / mag) * this.maxSpeed;
+            }
+            let steer = { x: desired.x - this.velocity.x, y: desired.y - this.velocity.y };
+            const forceMag = Math.hypot(steer.x, steer.y);
+            if (forceMag > this.maxForce) {
+                steer.x = (steer.x / forceMag) * this.maxForce * foodAttractionForce; // Reduced force for smoother approach
+                steer.y = (steer.y / forceMag) * this.maxForce * foodAttractionForce;
+            }
+            return steer;
+        }
+
+        flock(boids, food) {
             let alignment = this.align(boids);
             let cohesion = this.cohesion(boids);
             let separation = this.separation(boids);
+            let foodSteer = { x: 0, y: 0 };
+
+            // Attract towards the closest food
+            let closestFood = null;
+            let minDistance = Infinity;
+            for (let f of food) {
+                let d = Math.hypot(this.position.x - f.position.x, this.position.y - f.position.y);
+                if (d < minDistance) {
+                    minDistance = d;
+                    closestFood = f;
+                }
+            }
+
+            if (closestFood) {
+                foodSteer = this.attractedTo(closestFood.position);
+            }
 
             alignment.x *= parseFloat(alignmentSlider.value);
             alignment.y *= parseFloat(alignmentSlider.value);
@@ -152,10 +208,13 @@ document.addEventListener('DOMContentLoaded', () => {
             cohesion.y *= parseFloat(cohesionSlider.value);
             separation.x *= parseFloat(separationSlider.value);
             separation.y *= parseFloat(separationSlider.value);
+            foodSteer.x *= 1;
+            foodSteer.y *= 1;
 
             this.applyForce(alignment);
             this.applyForce(cohesion);
             this.applyForce(separation);
+            this.applyForce(foodSteer);
         }
 
         update() {
@@ -192,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         flock = [];
+        food = [];
         for (let i = 0; i < flockSize; i++) {
             flock.push(new Boid());
         }
@@ -205,9 +265,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        for (let f of food) {
+            f.draw(ctx);
+        }
+
         for (let boid of flock) {
             boid.edges();
-            boid.flock(flock);
+            boid.flock(flock, food);
             boid.update();
             boid.draw(ctx);
         }
@@ -222,6 +286,12 @@ document.addEventListener('DOMContentLoaded', () => {
             animationFrameId = null;
         }
         init();
+    });
+    spawnFoodBtn.addEventListener('click', () => {
+        // Spawn food at a random location
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        food.push(new Food(x, y));
     });
     canvas.addEventListener('click', (event) => {
         let boid = new Boid();
