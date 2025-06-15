@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tracerSlider = document.getElementById('tracer-slider');
     const foodLifespanSlider = document.getElementById('food-lifespan-slider');
     const predatorCheckbox = document.getElementById('predator-checkbox');
+    const predatorSpeedSlider = document.getElementById('predator-speed-slider');
     const spawnFoodBtn = document.getElementById('spawn-food-btn');
     const restartBtn = document.getElementById('restart-btn');
 
@@ -53,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    
+
     // --- BASE MOVING AGENT CLASS ---
     class Agent {
          constructor() {
@@ -61,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.velocity = { x: Math.random() * 4 - 2, y: Math.random() * 4 - 2 };
             this.acceleration = { x: 0, y: 0 };
         }
-        
+
         edges() {
             if (this.position.x > canvas.width) this.position.x = 0;
             else if (this.position.x < 0) this.position.x = canvas.width;
@@ -73,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.acceleration.x += force.x;
             this.acceleration.y += force.y;
         }
-        
+
         update() {
             this.position.x += this.velocity.x;
             this.position.y += this.velocity.y;
@@ -92,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     class Predator extends Agent {
         constructor() {
             super();
-            this.maxSpeed = 5; // Faster than boids
+            this.maxSpeed = parseFloat(predatorSpeedSlider.value);
             this.maxForce = 0.4;
             this.color = '#ff4d4d';
         }
@@ -102,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.translate(this.position.x, this.position.y);
             ctx.rotate(Math.atan2(this.velocity.y, this.velocity.x));
             ctx.beginPath();
-            ctx.moveTo(15, 0); // Larger and sharper
+            ctx.moveTo(15, 0);
             ctx.lineTo(-7, -7);
             ctx.lineTo(-7, 7);
             ctx.closePath();
@@ -138,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (closestBoid) {
-                if (minDistance < 10) { // If it catches a boid
+                if (minDistance < 10) {
                     const index = flock.indexOf(closestBoid);
                     if (index > -1) flock.splice(index, 1);
                 }
@@ -251,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steering;
         }
-        
+
         flee(predators) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -284,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steering;
         }
-        
+
         seekFood(food) {
             for (let f of food) {
                 if (Math.hypot(this.position.x - f.position.x, this.position.y - f.position.y) < f.radius) {
@@ -326,16 +327,15 @@ document.addEventListener('DOMContentLoaded', () => {
             let fleeSteer = this.flee(predators);
             let foodSteer = this.seekFood(food);
 
-            // Weight forces
             alignment.x *= parseFloat(alignmentSlider.value);
             alignment.y *= parseFloat(alignmentSlider.value);
             cohesion.x *= parseFloat(cohesionSlider.value);
             cohesion.y *= parseFloat(cohesionSlider.value);
             separation.x *= parseFloat(separationSlider.value);
             separation.y *= parseFloat(separationSlider.value);
-            fleeSteer.x *= 3.0; // Fleeing is a high priority
+            fleeSteer.x *= 3.0;
             fleeSteer.y *= 3.0;
-            
+
             this.applyForce(alignment);
             this.applyForce(cohesion);
             this.applyForce(separation);
@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.restore();
         }
     }
-    
+
     // --- MAIN SIMULATION ---
     function init() {
         resizeCanvas();
@@ -365,10 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         flock = Array.from({ length: flockSize }, () => new Boid());
         food = [];
-        predators = [];
-        if (predatorCheckbox.checked) {
-            predators.push(new Predator());
-        }
+        predators = predatorCheckbox.checked ? [new Predator()] : [];
         if (!animationFrameId) animate();
     }
 
@@ -376,9 +373,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         food = food.filter(f => f.lifespan > 0);
-        
+
         food.forEach(f => f.draw(ctx));
-        
+
         predators.forEach(p => {
             p.edges();
             const huntForce = p.hunt(flock);
@@ -408,12 +405,12 @@ document.addEventListener('DOMContentLoaded', () => {
         food.push(new Food(Math.random() * canvas.width, Math.random() * canvas.height));
     });
     predatorCheckbox.addEventListener('change', () => {
-        if (predatorCheckbox.checked) {
-            if (predators.length === 0) { // Avoid adding multiple predators
-                 predators.push(new Predator());
-            }
-        } else {
-            predators = [];
+        predators = predatorCheckbox.checked ? [new Predator()] : [];
+    });
+    predatorSpeedSlider.addEventListener('input', () => {
+        const newSpeed = parseFloat(predatorSpeedSlider.value);
+        for(const p of predators) {
+            p.maxSpeed = newSpeed;
         }
     });
     canvas.addEventListener('click', (event) => {
