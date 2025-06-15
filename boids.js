@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
     const tracerSlider = document.getElementById('tracer-slider');
+    const foodLifespanSlider = document.getElementById('food-lifespan-slider');
     const spawnFoodBtn = document.getElementById('spawn-food-btn');
     const restartBtn = document.getElementById('restart-btn');
 
@@ -30,10 +31,17 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor(x, y) {
             this.position = { x, y };
             this.radius = foodCloudRadius;
+            this.initialLifespan = parseFloat(foodLifespanSlider.value);
+            this.lifespan = this.initialLifespan;
+        }
+
+        deplete() {
+            this.lifespan--;
         }
 
         draw(ctx) {
-            ctx.fillStyle = 'rgba(150, 200, 100, 0.7)';
+            const alpha = Math.max(0, this.lifespan / this.initialLifespan) * 0.7;
+            ctx.fillStyle = `rgba(150, 200, 100, ${alpha})`;
             // Simulate a cloud of insects with many small circles
             for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * 2 * Math.PI;
@@ -41,9 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const x = this.position.x + radius * Math.cos(angle);
                 const y = this.position.y + radius * Math.sin(angle);
                 const insectSize = Math.random() * 2 + 1;
-                ctx.beginPath(); // Start a new path for each circle
+                ctx.beginPath();
                 ctx.arc(x, y, insectSize, 0, 2 * Math.PI);
-                ctx.fill(); // Fill each circle individually
+                ctx.fill();
             }
         }
     }
@@ -199,6 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (closestFood) {
                 foodSteer = this.attractedTo(closestFood.position);
+                if (minDistance < closestFood.radius) {
+                    closestFood.deplete();
+                }
             }
 
             alignment.x *= parseFloat(alignmentSlider.value);
@@ -260,6 +271,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function animate() {
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - parseFloat(tracerSlider.value)})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Filter out dead food
+        food = food.filter(f => f.lifespan > 0);
 
         for (let f of food) {
             f.draw(ctx);
