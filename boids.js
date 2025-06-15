@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const separationSlider = document.getElementById('separation-slider');
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
-    const tracersCheckbox = document.getElementById('tracers-checkbox');
+    const tracerSlider = document.getElementById('tracer-slider');
     const restartBtn = document.getElementById('restart-btn');
 
     function resizeCanvas() {
@@ -182,19 +182,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = 'white';
             ctx.fill();
             ctx.restore();
-
-            // Draw the tracer if the checkbox is checked
-            if (tracersCheckbox.checked) {
-                ctx.beginPath();
-                ctx.arc(this.position.x, this.position.y, this.perceptionRadius, 0, 2 * Math.PI);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                ctx.stroke();
-            }
         }
     }
 
     function init() {
         resizeCanvas();
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         flock = [];
         for (let i = 0; i < flockSize; i++) {
             flock.push(new Boid());
@@ -206,7 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let animationFrameId;
     function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Draw a semi-transparent rectangle to create the trailing effect
+        ctx.fillStyle = `rgba(0, 0, 0, ${1 - tracerSlider.value})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         for (let boid of flock) {
             boid.edges();
