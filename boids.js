@@ -26,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-        fluid = new Fluid(canvas.width, canvas.height, 8); // Re-initialize fluid on resize
+        // Finer resolution for the fluid grid (was 8, now 4)
+        fluid = new Fluid(canvas.width, canvas.height, 4);
     }
     
     // --- FLUID CLASS ---
@@ -69,9 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < this.cols; i++) {
                 for (let j = 0; j < this.rows; j++) {
                     const value = this.current[i][j];
-                    const blue = Math.min(255, Math.abs(value * 5));
-                    const brightness = Math.min(255, Math.abs(value * 2));
-                    ctx.fillStyle = `rgb(${brightness}, ${brightness}, ${blue})`;
+                    // New rendering for a subtle, dark blue ripple
+                    const color = Math.min(50, Math.abs(value));
+                    ctx.fillStyle = `rgb(0, 0, ${color})`;
                     ctx.fillRect(i * this.resolution, j * this.resolution, this.resolution, this.resolution);
                 }
             }
@@ -128,9 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         update() {
-            const prevX = this.position.x;
-            const prevY = this.position.y;
-            
             this.position.x += this.velocity.x;
             this.position.y += this.velocity.y;
             this.velocity.x += this.acceleration.x;
@@ -143,9 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             this.acceleration = { x: 0, y: 0 };
             
-            const moved = Math.hypot(this.position.x - prevX, this.position.y - prevY);
-            if (fluid && moved > 1) {
-                fluid.disturb(this.position.x, this.position.y, 500);
+            // Agents disturb the fluid as they move
+            if (fluid) {
+                fluid.disturb(this.position.x, this.position.y, 1500);
             }
         }
     }
@@ -465,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
         food.push(new Food(x, y));
-        fluid.disturb(x,y, 1000);
+        fluid.disturb(x,y, 2500); // Stronger disturbance for food
     });
     predatorCheckbox.addEventListener('change', () => {
         predators = predatorCheckbox.checked ? [new Predator()] : [];
@@ -477,7 +475,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     canvas.addEventListener('click', (event) => {
-        fluid.disturb(event.offsetX, event.offsetY, 1000);
+        // Weaker disturbance for a click
+        fluid.disturb(event.offsetX, event.offsetY, 500);
     });
 
     init();
