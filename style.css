@@ -47,9 +47,19 @@ label {
     margin-bottom: 8px;
 }
 
+.checkbox-label {
+    display: inline-block;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
 input[type="range"] {
     width: 100%;
     cursor: pointer;
+}
+
+input[type="checkbox"] {
+    vertical-align: middle;
 }
 
 button {
@@ -60,7 +70,7 @@ button {
     border-radius: 5px;
     cursor: pointer;
     font-size: 1em;
-    margin-top: auto; /* Push to bottom */
+    margin-top: auto;
 }
 
 button:hover {
