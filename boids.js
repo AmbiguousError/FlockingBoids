@@ -8,10 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let flock = [];
     const flockSize = 150;
 
-    // Sliders
+    // Sliders and controls
     const separationSlider = document.getElementById('separation-slider');
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
+    const tracersCheckbox = document.getElementById('tracers-checkbox');
     const restartBtn = document.getElementById('restart-btn');
 
     function resizeCanvas() {
@@ -61,15 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (total > 0) {
                 steering.x /= total;
                 steering.y /= total;
-                // Set to maxSpeed
                 const speed = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
                 steering.x = (steering.x / speed) * this.maxSpeed;
                 steering.y = (steering.y / speed) * this.maxSpeed;
-
                 steering.x -= this.velocity.x;
                 steering.y -= this.velocity.y;
-
-                // Limit the force
                 const forceMag = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
                 if(forceMag > this.maxForce) {
                     steering.x = (steering.x / forceMag) * this.maxForce;
@@ -95,16 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 steering.y /= total;
                 steering.x -= this.position.x;
                 steering.y -= this.position.y;
-
-                 // Set to maxSpeed
                 const speed = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
                 steering.x = (steering.x / speed) * this.maxSpeed;
                 steering.y = (steering.y / speed) * this.maxSpeed;
-
-
                 steering.x -= this.velocity.x;
                 steering.y -= this.velocity.y;
-                // Limit the force
                 const forceMag = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
                 if(forceMag > this.maxForce) {
                     steering.x = (steering.x / forceMag) * this.maxForce;
@@ -131,15 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
              if (total > 0) {
                 steering.x /= total;
                 steering.y /= total;
-
-                 // Set to maxSpeed
                 const speed = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
                 steering.x = (steering.x / speed) * this.maxSpeed;
                 steering.y = (steering.y / speed) * this.maxSpeed;
-
                 steering.x -= this.velocity.x;
                 steering.y -= this.velocity.y;
-                // Limit the force
                 const forceMag = Math.sqrt(steering.x * steering.x + steering.y * steering.y);
                 if(forceMag > this.maxForce) {
                     steering.x = (steering.x / forceMag) * this.maxForce;
@@ -161,11 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
             cohesion.x *= cohesionSlider.value;
             cohesion.y *= cohesionSlider.value;
 
-
             this.applyForce(alignment);
             this.applyForce(cohesion);
             this.applyForce(separation);
-
         }
 
         update() {
@@ -174,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.velocity.x += this.acceleration.x;
             this.velocity.y += this.acceleration.y;
 
-            // limit speed
             const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
             if (speed > this.maxSpeed) {
                 this.velocity.x = (this.velocity.x / speed) * this.maxSpeed;
@@ -185,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw(ctx) {
+            // Draw the boid itself
             ctx.save();
             ctx.translate(this.position.x, this.position.y);
             ctx.rotate(Math.atan2(this.velocity.y, this.velocity.x));
@@ -196,6 +182,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillStyle = 'white';
             ctx.fill();
             ctx.restore();
+
+            // Draw the tracer if the checkbox is checked
+            if (tracersCheckbox.checked) {
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.perceptionRadius, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.stroke();
+            }
         }
     }
 
@@ -205,9 +199,12 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < flockSize; i++) {
             flock.push(new Boid());
         }
-        animate();
+        if (!animationFrameId) {
+           animate();
+        }
     }
 
+    let animationFrameId;
     function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -218,11 +215,15 @@ document.addEventListener('DOMContentLoaded', () => {
             boid.draw(ctx);
         }
 
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
     }
 
     window.addEventListener('resize', resizeCanvas);
-    restartBtn.addEventListener('click', init);
+    restartBtn.addEventListener('click', () => {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        init();
+    });
     canvas.addEventListener('click', (event) => {
         let boid = new Boid();
         boid.position.x = event.offsetX;
