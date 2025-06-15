@@ -26,10 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-        // Finer resolution for the fluid grid (was 8, now 4)
         fluid = new Fluid(canvas.width, canvas.height, 4);
     }
-    
+
     // --- FLUID CLASS ---
     class Fluid {
         constructor(width, height, resolution) {
@@ -45,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const col = Math.floor(x / this.resolution);
             const row = Math.floor(y / this.resolution);
             if (col > 1 && col < this.cols - 1 && row > 1 && row < this.rows - 1) {
-                this.previous[col][row] = pressure;
+                this.previous [col][row] = pressure;
             }
         }
 
@@ -53,12 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let damping = parseFloat(rippleDampingSlider.value);
             for (let i = 1; i < this.cols - 1; i++) {
                 for (let j = 1; j < this.rows - 1; j++) {
-                    this.current[i][j] =
-                        (this.previous[i - 1][j] +
-                         this.previous[i + 1][j] +
-                         this.previous[i][j - 1] +
-                         this.previous[i][j + 1]) / 2 - this.current[i][j];
-                    this.current[i][j] *= damping;
+                    this.current [i][j] =
+                        (this.previous [i - 1][j] +
+                         this.previous [i + 1][j] +
+                         this.previous [i][j - 1] +
+                         this.previous [i][j + 1]) / 2 - this.current [i][j];
+                    this.current [i][j] *= damping;
                 }
             }
             let temp = this.previous;
@@ -69,8 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         render(ctx) {
             for (let i = 0; i < this.cols; i++) {
                 for (let j = 0; j < this.rows; j++) {
-                    const value = this.current[i][j];
-                    // New rendering for a subtle, dark blue ripple
+                    const value = this.current [i][j];
                     const color = Math.min(50, Math.abs(value));
                     ctx.fillStyle = `rgb(0, 0, ${color})`;
                     ctx.fillRect(i * this.resolution, j * this.resolution, this.resolution, this.resolution);
@@ -107,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    
+
     // --- BASE MOVING AGENT CLASS ---
     class Agent {
          constructor() {
@@ -115,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.velocity = { x: Math.random() * 4 - 2, y: Math.random() * 4 - 2 };
             this.acceleration = { x: 0, y: 0 };
         }
-        
+
         edges() {
             if (this.position.x > canvas.width) this.position.x = 0;
             else if (this.position.x < 0) this.position.x = canvas.width;
@@ -127,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.acceleration.x += force.x;
             this.acceleration.y += force.y;
         }
-        
+
         update() {
             this.position.x += this.velocity.x;
             this.position.y += this.velocity.y;
@@ -140,10 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.velocity.y = (this.velocity.y / mag) * this.maxSpeed;
             }
             this.acceleration = { x: 0, y: 0 };
-            
-            // Agents disturb the fluid as they move
+
+            // Slightly reduced disturbance from boids
             if (fluid) {
-                fluid.disturb(this.position.x, this.position.y, 1500);
+                fluid.disturb(this.position.x, this.position.y, 1000);
             }
         }
     }
@@ -412,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            ctx.fillStyle = 'white';
+            ctx.fillStyle = 'lightgray'; // Changed color to lightgray
             ctx.fill();
             ctx.restore();
         }
@@ -430,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function animate() {
         fluid.update();
         fluid.render(ctx);
-        
+
         food = food.filter(f => f.lifespan > 0);
         food.forEach(f => f.draw(ctx));
 
@@ -463,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
         food.push(new Food(x, y));
-        fluid.disturb(x,y, 2500); // Stronger disturbance for food
+        fluid.disturb(x,y, 2500);
     });
     predatorCheckbox.addEventListener('change', () => {
         predators = predatorCheckbox.checked ? [new Predator()] : [];
@@ -475,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     canvas.addEventListener('click', (event) => {
-        // Weaker disturbance for a click
         fluid.disturb(event.offsetX, event.offsetY, 500);
     });
 
