@@ -29,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const restartBtn = document.getElementById('restart-btn');
 
     function resizeCanvas() {
-        // This function is now critical for the responsive layout
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
         if (fluid) {
@@ -85,19 +84,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let j = 0; j < this.rows; j++) {
                     const index = (j * this.cols + i) * 4;
                     const value = this.current[i][j];
-                    const color = Math.min(50, Math.abs(value));
-                    data[index] = 0;
-                    data[index + 1] = 0;
-                    data[index + 2] = color;
-                    data[index + 3] = 255;
+                    const alpha = Math.min(255, Math.abs(value * 2));
+                    
+                    data[index] = 200; 
+                    data[index + 1] = 220;
+                    data[index + 2] = 230;
+                    data[index + 3] = alpha;
                 }
             }
             this.offscreenCtx.putImageData(this.imageData, 0, 0);
         }
 
         draw(mainCtx, mainWidth, mainHeight) {
-            mainCtx.fillStyle = '#000000'; // Set a black base for the fluid
+            // CORRECTED: Set the light watercolor-style base color
+            mainCtx.fillStyle = '#f7f9f9';
             mainCtx.fillRect(0, 0, mainWidth, mainHeight);
+            
             mainCtx.imageSmoothingEnabled = false;
             mainCtx.drawImage(this.offscreenCanvas, 0, 0, mainWidth, mainHeight);
         }
@@ -398,7 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let separation = this.separation(boids);
             let fleeSteer = this.flee(predators);
             let foodSteer = this.seekFood(food);
-
             alignment.x *= parseFloat(alignmentSlider.value);
             alignment.y *= parseFloat(alignmentSlider.value);
             cohesion.x *= parseFloat(cohesionSlider.value);
@@ -407,7 +408,6 @@ document.addEventListener('DOMContentLoaded', () => {
             separation.y *= parseFloat(separationSlider.value);
             fleeSteer.x *= 3.0;
             fleeSteer.y *= 3.0;
-
             this.applyForce(alignment);
             this.applyForce(cohesion);
             this.applyForce(separation);
@@ -423,7 +423,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            ctx.fillStyle = '#00ffff';
+            if (fluidCheckbox.checked) {
+                 ctx.fillStyle = '#333333';
+            } else {
+                 ctx.fillStyle = '#00ffff';
+            }
             ctx.fill();
             ctx.restore();
         }
@@ -450,7 +454,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         food = food.filter(f => f.lifespan > 0);
         food.forEach(f => f.draw(ctx));
-
         predators.forEach(p => {
             p.edges();
             const huntForce = p.hunt(flock);
@@ -458,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
             p.update();
             p.draw(ctx);
         });
-
         flock.forEach(boid => {
             boid.edges();
             boid.flock(flock, food, predators);
@@ -471,8 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS ---
     window.addEventListener('resize', () => {
-        // Debounce resize events for performance
-        cancelAnimationFrame(animationFrameId);
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
         init();
     });
@@ -499,15 +500,12 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('click', (event) => {
         if (fluidCheckbox.checked) fluid.disturb(event.offsetX, event.offsetY, 500);
     });
-
     hideControlsBtn.addEventListener('click', () => {
         uiPanel.classList.add('hidden');
         showControlsBtn.classList.remove('hidden');
         mainContainer.classList.add('controls-hidden');
-        // Use a short delay to allow the CSS transition to complete before resizing
         setTimeout(resizeCanvas, 300);
     });
-
     showControlsBtn.addEventListener('click', () => {
         uiPanel.classList.remove('hidden');
         showControlsBtn.classList.add('hidden');
