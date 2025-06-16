@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let flock = [];
     let food = [];
     let predators = [];
-    let fluid;
     const flockSize = 150;
     const foodCloudRadius = 30;
 
@@ -20,91 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const separationSlider = document.getElementById('separation-slider');
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
-    const rippleDampingSlider = document.getElementById('ripple-damping-slider');
     const foodLifespanSlider = document.getElementById('food-lifespan-slider');
     const predatorCheckbox = document.getElementById('predator-checkbox');
     const predatorSpeedSlider = document.getElementById('predator-speed-slider');
-    const fluidCheckbox = document.getElementById('fluid-checkbox');
     const spawnFoodBtn = document.getElementById('spawn-food-btn');
     const restartBtn = document.getElementById('restart-btn');
 
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-        // THE FIX: Always create a new Fluid object on resize/init to match canvas dimensions.
-        // The old "if (fluid)" check was preventing it from ever being created.
-        fluid = new Fluid(canvas.width, canvas.height, 8);
     }
     
-    // --- FLUID CLASS ---
-    class Fluid {
-        constructor(width, height, resolution) {
-            this.resolution = resolution;
-            this.cols = Math.floor(width / this.resolution);
-            this.rows = Math.floor(height / this.resolution);
-
-            this.offscreenCanvas = document.createElement('canvas');
-            this.offscreenCanvas.width = this.cols;
-            this.offscreenCanvas.height = this.rows;
-            this.offscreenCtx = this.offscreenCanvas.getContext('2d');
-            this.imageData = this.offscreenCtx.createImageData(this.cols, this.rows);
-
-            this.current = new Array(this.cols).fill(0).map(() => new Array(this.rows).fill(0));
-            this.previous = new Array(this.cols).fill(0).map(() => new Array(this.rows).fill(0));
-        }
-
-        disturb(x, y, pressure) {
-            const col = Math.floor(x / this.resolution);
-            const row = Math.floor(y / this.resolution);
-            if (col > 1 && col < this.cols - 1 && row > 1 && row < this.rows - 1) {
-                this.previous[col][row] = pressure;
-            }
-        }
-
-        update() {
-            let damping = parseFloat(rippleDampingSlider.value);
-            for (let i = 1; i < this.cols - 1; i++) {
-                for (let j = 1; j < this.rows - 1; j++) {
-                    this.current[i][j] =
-                        (this.previous[i - 1][j] +
-                         this.previous[i + 1][j] +
-                         this.previous[i][j - 1] +
-                         this.previous[i][j + 1]) / 2 - this.current[i][j];
-                    this.current[i][j] *= damping;
-                }
-            }
-            let temp = this.previous;
-            this.previous = this.current;
-            this.current = temp;
-        }
-
-        renderToBuffer() {
-            let data = this.imageData.data;
-            for (let i = 0; i < this.cols; i++) {
-                for (let j = 0; j < this.rows; j++) {
-                    const index = (j * this.cols + i) * 4;
-                    const value = this.current[i][j];
-                    const alpha = Math.min(255, Math.abs(value * 2));
-                    
-                    data[index] = 200; 
-                    data[index + 1] = 220;
-                    data[index + 2] = 230;
-                    data[index + 3] = alpha;
-                }
-            }
-            this.offscreenCtx.putImageData(this.imageData, 0, 0);
-        }
-
-        draw(mainCtx, mainWidth, mainHeight) {
-            mainCtx.fillStyle = '#f7f9f9';
-            mainCtx.fillRect(0, 0, mainWidth, mainHeight);
-            
-            mainCtx.imageSmoothingEnabled = false;
-            mainCtx.drawImage(this.offscreenCanvas, 0, 0, mainWidth, mainHeight);
-        }
-    }
-
-
     // --- FOOD CLASS ---
     class Food {
         constructor(x, y) {
@@ -163,10 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.velocity.y = (this.velocity.y / mag) * this.maxSpeed;
             }
             this.acceleration = { x: 0, y: 0 };
-            
-            if (fluid && fluidCheckbox.checked) {
-                fluid.disturb(this.position.x, this.position.y, 1500);
-            }
         }
     }
 
@@ -422,11 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            if (fluidCheckbox.checked) {
-                 ctx.fillStyle = '#333333';
-            } else {
-                 ctx.fillStyle = '#00ffff';
-            }
+            ctx.fillStyle = '#00ffff';
             ctx.fill();
             ctx.restore();
         }
@@ -444,14 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function animate() {
-        if (fluidCheckbox.checked) {
-            fluid.update();
-            fluid.renderToBuffer();
-            fluid.draw(ctx, canvas.width, canvas.height);
-        } else {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+        // This is the simple, performant tracer effect on a dark background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         food = food.filter(f => f.lifespan > 0);
         food.forEach(f => f.draw(ctx));
@@ -487,7 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
         food.push(new Food(x, y));
-        if (fluidCheckbox.checked) fluid.disturb(x,y, 2500);
     });
     predatorCheckbox.addEventListener('change', () => {
         predators = predatorCheckbox.checked ? [new Predator()] : [];
@@ -499,7 +410,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     canvas.addEventListener('click', (event) => {
-        if (fluidCheckbox.checked) fluid.disturb(event.offsetX, event.offsetY, 500);
+        const boid = new Boid();
+        boid.position.x = event.offsetX;
+        boid.position.y = event.offsetY;
+        flock.push(boid);
     });
     hideControlsBtn.addEventListener('click', () => {
         uiPanel.classList.add('hidden');
