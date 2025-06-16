@@ -3,6 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('simulation-container');
 
+    // --- NEW: Load the background image ---
+    const backgroundImage = new Image();
+    let backgroundImageLoaded = false;
+    backgroundImage.onload = () => {
+        backgroundImageLoaded = true;
+    };
+    backgroundImage.src = 'http://googleusercontent.com/image_generation_content/0';
+
+
     let flock = [];
     let food = [];
     let predators = [];
@@ -30,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fluid = new Fluid(canvas.width, canvas.height, 8);
     }
     
-    // --- FLUID CLASS (PERFORMANCE-OPTIMIZED) ---
+    // --- FLUID CLASS ---
     class Fluid {
         constructor(width, height, resolution) {
             this.resolution = resolution;
@@ -110,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const lifespanRatio = Math.max(0, this.lifespan / this.initialLifespan);
             const currentRadius = this.radius * lifespanRatio;
             const alpha = lifespanRatio * 0.7;
-            ctx.fillStyle = `rgba(150, 200, 100, ${alpha})`;
+            ctx.fillStyle = `rgba(100, 160, 80, ${alpha})`; // Made food a bit darker green
             for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * 2 * Math.PI;
                 const radius = Math.random() * currentRadius;
@@ -168,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
             super();
             this.maxSpeed = parseFloat(predatorSpeedSlider.value);
             this.maxForce = 0.7;
-            this.color = '#ff4d4d';
+            this.color = '#e63946'; // A strong red color
         }
 
         draw(ctx) {
@@ -426,7 +435,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            ctx.fillStyle = '#00ffff';
+            // --- DYNAMIC BOID COLOR ---
+            if (fluidCheckbox.checked) {
+                 ctx.fillStyle = '#00ffff'; // Cyan for dark fluid background
+            } else {
+                 ctx.fillStyle = '#333333'; // Dark gray for light watercolor background
+            }
             ctx.fill();
             ctx.restore();
         }
@@ -442,13 +456,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function animate() {
+        // --- UPDATED BACKGROUND LOGIC ---
         if (fluidCheckbox.checked) {
             fluid.update();
             fluid.renderToBuffer();
             fluid.draw(ctx, canvas.width, canvas.height);
         } else {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Draw the watercolor image if it's loaded
+            if (backgroundImageLoaded) {
+                ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+            } else {
+                // Fallback to a solid light color if the image is still loading
+                ctx.fillStyle = '#f0f4f8';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
         }
         
         food = food.filter(f => f.lifespan > 0);
