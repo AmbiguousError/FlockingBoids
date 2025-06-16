@@ -15,6 +15,7 @@ body {
 #simulation-container {
     flex-grow: 1;
     background-color: #000;
+    transition: width 0.3s ease;
 }
 
 #boids-canvas {
@@ -30,7 +31,54 @@ body {
     border-left: 1px solid #333;
     display: flex;
     flex-direction: column;
+    position: relative;
+    transition: width 0.3s ease, padding 0.3s ease;
+    flex-shrink: 0;
 }
+
+#ui-panel.minimized {
+    width: 0;
+    padding: 0;
+    border-left: none;
+}
+
+#ui-panel.minimized > :not(#toggle-panel-btn) {
+    display: none;
+}
+
+#toggle-panel-btn {
+    position: absolute;
+    left: -31px; /* 1px for the border */
+    top: 20px;
+    width: 30px;
+    height: 40px;
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-right: none;
+    color: #e0e0e0;
+    cursor: pointer;
+    padding: 0;
+    font-size: 20px;
+    line-height: 40px;
+    text-align: center;
+    border-radius: 5px 0 0 5px;
+    margin: 0;
+    z-index: 10;
+}
+
+#toggle-panel-btn::before {
+    content: '»';
+}
+
+#ui-panel.minimized #toggle-panel-btn::before {
+    content: '«';
+}
+
+#ui-panel.minimized #toggle-panel-btn {
+    border: 1px solid #333;
+    border-left: none;
+}
+
 
 h2 {
     margin-top: 0;
@@ -58,7 +106,6 @@ label {
     cursor: help;
 }
 
-
 input[type="range"] {
     width: 100%;
     cursor: pointer;
@@ -85,4 +132,22 @@ button:hover {
 
 #restart-btn {
     margin-top: auto; /* Push to bottom */
+}
+
+/* For mobile */
+@media (max-width: 768px) {
+    #ui-panel {
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100vh;
+        z-index: 100;
+        box-shadow: -5px 0px 15px rgba(0,0,0,0.2);
+    }
+    #ui-panel.minimized {
+        width: 0px;
+    }
+    #toggle-panel-btn {
+        left: -30px;
+    }
 }
