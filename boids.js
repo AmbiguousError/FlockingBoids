@@ -27,16 +27,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-        // Better default resolution for performance
-        fluid = new Fluid(canvas.width, canvas.height, 6);
+        fluid = new Fluid(canvas.width, canvas.height, 8); // Optimized resolution
     }
     
-    // --- FLUID CLASS ---
+    // --- FLUID CLASS (PERFORMANCE-OPTIMIZED) ---
     class Fluid {
         constructor(width, height, resolution) {
             this.resolution = resolution;
             this.cols = Math.floor(width / this.resolution);
             this.rows = Math.floor(height / this.resolution);
+
+            // Off-screen canvas for high-performance rendering
+            this.offscreenCanvas = document.createElement('canvas');
+            this.offscreenCanvas.width = this.cols;
+            this.offscreenCanvas.height = this.rows;
+            this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+            this.imageData = this.offscreenCtx.createImageData(this.cols, this.rows);
 
             this.current = new Array(this.cols).fill(0).map(() => new Array(this.rows).fill(0));
             this.previous = new Array(this.cols).fill(0).map(() => new Array(this.rows).fill(0));
@@ -67,21 +73,33 @@ document.addEventListener('DOMContentLoaded', () => {
             this.current = temp;
         }
 
-        render(ctx) {
+        // Renders the low-resolution fluid data to the off-screen canvas
+        renderToBuffer() {
+            let data = this.imageData.data;
             for (let i = 0; i < this.cols; i++) {
                 for (let j = 0; j < this.rows; j++) {
+                    const index = (j * this.cols + i) * 4;
                     const value = this.current[i][j];
                     const color = Math.min(50, Math.abs(value));
-                    ctx.fillStyle = `rgb(0, 0, ${color})`;
-                    ctx.fillRect(i * this.resolution, j * this.resolution, this.resolution, this.resolution);
+                    data[index] = 0;         // R
+                    data[index + 1] = 0;     // G
+                    data[index + 2] = color; // B
+                    data[index + 3] = 255;   // A
                 }
             }
+            this.offscreenCtx.putImageData(this.imageData, 0, 0);
+        }
+
+        // Draws the final, scaled-up result to the main visible canvas
+        draw(mainCtx, mainWidth, mainHeight) {
+            mainCtx.imageSmoothingEnabled = false; // For a crisp, pixelated look
+            mainCtx.drawImage(this.offscreenCanvas, 0, 0, mainWidth, mainHeight);
         }
     }
 
 
     // --- FOOD CLASS ---
-    class Food {
+    class Food { /* ... unchanged ... */ 
         constructor(x, y) {
             this.position = { x, y };
             this.radius = foodCloudRadius;
@@ -148,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- PREDATOR CLASS ---
-    class Predator extends Agent {
+    class Predator extends Agent { /* ... unchanged ... */ 
         constructor() {
             super();
             this.maxSpeed = parseFloat(predatorSpeedSlider.value);
@@ -209,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- BOID CLASS ---
-    class Boid extends Agent {
+    class Boid extends Agent { /* ... draw method changed, rest is unchanged ... */ 
         constructor() {
             super();
             this.maxSpeed = 4;
@@ -411,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            ctx.fillStyle = '#00ffff'; // Changed color to cyan for visibility
+            ctx.fillStyle = '#00ffff'; // Boid color changed to cyan
             ctx.fill();
             ctx.restore();
         }
@@ -429,9 +447,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function animate() {
         if (fluidCheckbox.checked) {
             fluid.update();
-            fluid.render(ctx);
+            fluid.renderToBuffer();
+            fluid.draw(ctx, canvas.width, canvas.height);
         } else {
-            // If fluid is off, use the simple tracer effect
             ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
