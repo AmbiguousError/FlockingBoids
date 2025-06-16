@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw(mainCtx, mainWidth, mainHeight) {
-            // CORRECTED: Set the light watercolor-style base color
+            // THIS IS THE FIX: The base fillStyle is now the light color
             mainCtx.fillStyle = '#f7f9f9';
             mainCtx.fillRect(0, 0, mainWidth, mainHeight);
             
