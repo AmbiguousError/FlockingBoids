@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('boids-canvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('simulation-container');
+    const mainContainer = document.querySelector('.container');
 
     let flock = [];
     let food = [];
@@ -13,6 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let animationFrameId;
 
     // --- UI CONTROLS ---
+    const uiPanel = document.getElementById('ui-panel');
+    const hideControlsBtn = document.getElementById('hide-controls-btn');
+    const showControlsBtn = document.getElementById('show-controls-btn');
     const separationSlider = document.getElementById('separation-slider');
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
@@ -25,9 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const restartBtn = document.getElementById('restart-btn');
 
     function resizeCanvas() {
+        // This function is now critical for the responsive layout
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-        fluid = new Fluid(canvas.width, canvas.height, 8);
+        if (fluid) {
+            fluid = new Fluid(canvas.width, canvas.height, 8);
+        }
     }
     
     // --- FLUID CLASS ---
@@ -78,23 +85,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let j = 0; j < this.rows; j++) {
                     const index = (j * this.cols + i) * 4;
                     const value = this.current[i][j];
-                    const alpha = Math.min(255, Math.abs(value * 2));
-                    
-                    data[index] = 200; // R - light blue
-                    data[index + 1] = 220; // G - light blue
-                    data[index + 2] = 230; // B - light blue
-                    data[index + 3] = alpha;   // Alpha
+                    const color = Math.min(50, Math.abs(value));
+                    data[index] = 0;
+                    data[index + 1] = 0;
+                    data[index + 2] = color;
+                    data[index + 3] = 255;
                 }
             }
             this.offscreenCtx.putImageData(this.imageData, 0, 0);
         }
 
         draw(mainCtx, mainWidth, mainHeight) {
-            // Set the light watercolor-style base color
-            mainCtx.fillStyle = '#f7f9f9';
+            mainCtx.fillStyle = '#000000'; // Set a black base for the fluid
             mainCtx.fillRect(0, 0, mainWidth, mainHeight);
-            
-            // Draw the semi-transparent ripples on top
             mainCtx.imageSmoothingEnabled = false;
             mainCtx.drawImage(this.offscreenCanvas, 0, 0, mainWidth, mainHeight);
         }
@@ -109,9 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.initialLifespan = parseFloat(foodLifespanSlider.value);
             this.lifespan = this.initialLifespan;
         }
-
         deplete() { this.lifespan--; }
-
         draw(ctx) {
             const lifespanRatio = Math.max(0, this.lifespan / this.initialLifespan);
             const currentRadius = this.radius * lifespanRatio;
@@ -176,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.maxForce = 0.7;
             this.color = '#e63946';
         }
-
         draw(ctx) {
             ctx.save();
             ctx.translate(this.position.x, this.position.y);
@@ -190,7 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fill();
             ctx.restore();
         }
-
         seek(target) {
             let desired = { x: target.x - this.position.x, y: target.y - this.position.y };
             const mag = Math.hypot(desired.x, desired.y);
@@ -206,7 +205,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steer;
         }
-
         hunt(boids) {
             let closestBoid = null;
             let minDistance = Infinity;
@@ -237,7 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.maxForce = 0.2;
             this.perceptionRadius = 50;
         }
-
         align(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -267,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steering;
         }
-
         cohesion(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -299,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steering;
         }
-
         separation(boids) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -332,7 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steering;
         }
-
         flee(predators) {
             let steering = { x: 0, y: 0 };
             let total = 0;
@@ -365,7 +359,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return steering;
         }
-
         seekFood(food) {
             for (let f of food) {
                 if (Math.hypot(this.position.x - f.position.x, this.position.y - f.position.y) < f.radius) {
@@ -399,7 +392,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return { x: 0, y: 0 };
         }
-
         flock(boids, food, predators) {
             let alignment = this.align(boids);
             let cohesion = this.cohesion(boids);
@@ -422,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.applyForce(foodSteer);
             this.applyForce(fleeSteer);
         }
-
         draw(ctx) {
             ctx.save();
             ctx.translate(this.position.x, this.position.y);
@@ -432,11 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            if (fluidCheckbox.checked) {
-                 ctx.fillStyle = '#333333';
-            } else {
-                 ctx.fillStyle = '#00ffff';
-            }
+            ctx.fillStyle = '#00ffff';
             ctx.fill();
             ctx.restore();
         }
@@ -483,7 +470,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- EVENT LISTENERS ---
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('resize', () => {
+        // Debounce resize events for performance
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        init();
+    });
     restartBtn.addEventListener('click', () => {
         if (animationFrameId) cancelAnimationFrame(animationFrameId);
         animationFrameId = null;
@@ -506,6 +498,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     canvas.addEventListener('click', (event) => {
         if (fluidCheckbox.checked) fluid.disturb(event.offsetX, event.offsetY, 500);
+    });
+
+    hideControlsBtn.addEventListener('click', () => {
+        uiPanel.classList.add('hidden');
+        showControlsBtn.classList.remove('hidden');
+        mainContainer.classList.add('controls-hidden');
+        // Use a short delay to allow the CSS transition to complete before resizing
+        setTimeout(resizeCanvas, 300);
+    });
+
+    showControlsBtn.addEventListener('click', () => {
+        uiPanel.classList.remove('hidden');
+        showControlsBtn.classList.add('hidden');
+        mainContainer.classList.remove('controls-hidden');
+        setTimeout(resizeCanvas, 300);
     });
 
     init();
