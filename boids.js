@@ -3,15 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('simulation-container');
 
-    // --- NEW: Load the background image ---
-    const backgroundImage = new Image();
-    let backgroundImageLoaded = false;
-    backgroundImage.onload = () => {
-        backgroundImageLoaded = true;
-    };
-    backgroundImage.src = 'http://googleusercontent.com/image_generation_content/0';
-
-
     let flock = [];
     let food = [];
     let predators = [];
@@ -87,17 +78,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let j = 0; j < this.rows; j++) {
                     const index = (j * this.cols + i) * 4;
                     const value = this.current[i][j];
-                    const color = Math.min(50, Math.abs(value));
-                    data[index] = 0;
-                    data[index + 1] = 0;
-                    data[index + 2] = color;
-                    data[index + 3] = 255;
+                    const alpha = Math.min(255, Math.abs(value * 2));
+                    
+                    data[index] = 200; // R - light blue
+                    data[index + 1] = 220; // G - light blue
+                    data[index + 2] = 230; // B - light blue
+                    data[index + 3] = alpha;   // Alpha
                 }
             }
             this.offscreenCtx.putImageData(this.imageData, 0, 0);
         }
 
         draw(mainCtx, mainWidth, mainHeight) {
+            // Set the light watercolor-style base color
+            mainCtx.fillStyle = '#f7f9f9';
+            mainCtx.fillRect(0, 0, mainWidth, mainHeight);
+            
+            // Draw the semi-transparent ripples on top
             mainCtx.imageSmoothingEnabled = false;
             mainCtx.drawImage(this.offscreenCanvas, 0, 0, mainWidth, mainHeight);
         }
@@ -119,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const lifespanRatio = Math.max(0, this.lifespan / this.initialLifespan);
             const currentRadius = this.radius * lifespanRatio;
             const alpha = lifespanRatio * 0.7;
-            ctx.fillStyle = `rgba(100, 160, 80, ${alpha})`; // Made food a bit darker green
+            ctx.fillStyle = `rgba(100, 160, 80, ${alpha})`;
             for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * 2 * Math.PI;
                 const radius = Math.random() * currentRadius;
@@ -177,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             super();
             this.maxSpeed = parseFloat(predatorSpeedSlider.value);
             this.maxForce = 0.7;
-            this.color = '#e63946'; // A strong red color
+            this.color = '#e63946';
         }
 
         draw(ctx) {
@@ -435,11 +432,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            // --- DYNAMIC BOID COLOR ---
             if (fluidCheckbox.checked) {
-                 ctx.fillStyle = '#00ffff'; // Cyan for dark fluid background
+                 ctx.fillStyle = '#333333';
             } else {
-                 ctx.fillStyle = '#333333'; // Dark gray for light watercolor background
+                 ctx.fillStyle = '#00ffff';
             }
             ctx.fill();
             ctx.restore();
@@ -456,20 +452,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function animate() {
-        // --- UPDATED BACKGROUND LOGIC ---
         if (fluidCheckbox.checked) {
             fluid.update();
             fluid.renderToBuffer();
             fluid.draw(ctx, canvas.width, canvas.height);
         } else {
-            // Draw the watercolor image if it's loaded
-            if (backgroundImageLoaded) {
-                ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-            } else {
-                // Fallback to a solid light color if the image is still loading
-                ctx.fillStyle = '#f0f4f8';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
         
         food = food.filter(f => f.lifespan > 0);
