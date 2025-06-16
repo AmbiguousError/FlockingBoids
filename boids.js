@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-        fluid = new Fluid(canvas.width, canvas.height, 8); // Optimized resolution
+        fluid = new Fluid(canvas.width, canvas.height, 8);
     }
     
     // --- FLUID CLASS (PERFORMANCE-OPTIMIZED) ---
@@ -37,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.cols = Math.floor(width / this.resolution);
             this.rows = Math.floor(height / this.resolution);
 
-            // Off-screen canvas for high-performance rendering
             this.offscreenCanvas = document.createElement('canvas');
             this.offscreenCanvas.width = this.cols;
             this.offscreenCanvas.height = this.rows;
@@ -73,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.current = temp;
         }
 
-        // Renders the low-resolution fluid data to the off-screen canvas
         renderToBuffer() {
             let data = this.imageData.data;
             for (let i = 0; i < this.cols; i++) {
@@ -81,25 +79,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     const index = (j * this.cols + i) * 4;
                     const value = this.current[i][j];
                     const color = Math.min(50, Math.abs(value));
-                    data[index] = 0;         // R
-                    data[index + 1] = 0;     // G
-                    data[index + 2] = color; // B
-                    data[index + 3] = 255;   // A
+                    data[index] = 0;
+                    data[index + 1] = 0;
+                    data[index + 2] = color;
+                    data[index + 3] = 255;
                 }
             }
             this.offscreenCtx.putImageData(this.imageData, 0, 0);
         }
 
-        // Draws the final, scaled-up result to the main visible canvas
         draw(mainCtx, mainWidth, mainHeight) {
-            mainCtx.imageSmoothingEnabled = false; // For a crisp, pixelated look
+            mainCtx.imageSmoothingEnabled = false;
             mainCtx.drawImage(this.offscreenCanvas, 0, 0, mainWidth, mainHeight);
         }
     }
 
 
     // --- FOOD CLASS ---
-    class Food { /* ... unchanged ... */ 
+    class Food {
         constructor(x, y) {
             this.position = { x, y };
             this.radius = foodCloudRadius;
@@ -166,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- PREDATOR CLASS ---
-    class Predator extends Agent { /* ... unchanged ... */ 
+    class Predator extends Agent {
         constructor() {
             super();
             this.maxSpeed = parseFloat(predatorSpeedSlider.value);
@@ -227,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- BOID CLASS ---
-    class Boid extends Agent { /* ... draw method changed, rest is unchanged ... */ 
+    class Boid extends Agent {
         constructor() {
             super();
             this.maxSpeed = 4;
@@ -429,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.lineTo(-5, -5);
             ctx.lineTo(-5, 5);
             ctx.closePath();
-            ctx.fillStyle = '#00ffff'; // Boid color changed to cyan
+            ctx.fillStyle = '#00ffff';
             ctx.fill();
             ctx.restore();
         }
