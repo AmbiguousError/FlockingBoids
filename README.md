@@ -16,17 +16,20 @@ Together, these rules create the mesmerizing, organic-looking movement of a floc
 
 * **Interactive Simulation:** Watch hundreds of boids flock in real-time on an HTML5 canvas.
 * **Customizable Parameters:** Use sliders to adjust the influence of the three core rules (Separation, Alignment, Cohesion) and see the immediate effect on the flock's behavior.
-* **Visualizations:** Toggle visual aids like perception radius to better understand how the boids are "seeing" their world.
-* **Simple Controls:** Click to add new boids or restart the simulation with different settings.
+* **Collapsible Controls:** The side panel can be minimized to allow for a full-screen simulation experience, which is ideal for mobile devices.
+* **Predators & Food:** Enable predators that hunt the boids, and spawn food clouds that the boids will flock towards.
+* **Fluid Simulation:** An optional fluid ripple effect is created by the movement of the boids, predators, and food spawns.
 
 ## How to Use
 
-1.  **Open `boids.html`:** Simply open the `boids.html` file in a modern web browser.
+1.  **Open `index.html`:** Simply open the `index.html` file in a modern web browser.
 2.  **Observe:** Watch the boids move according to the default parameters.
 3.  **Interact:**
     * Use the sliders in the control panel to change the weight of the separation, alignment, and cohesion rules.
-    * Click anywhere on the canvas to add a new boid at that location.
+    * Click the `»` / `«` button on the edge of the control panel to minimize or expand it.
+    * Click the 'Spawn Food Cloud' button to create food sources.
     * Press the 'Restart' button to clear the canvas and start a new simulation with the current slider settings.
+    * If "Enable Fluid Ripples" is checked, click anywhere on the canvas to create a ripple effect.
 
 ## Technologies Used
 
@@ -36,6 +39,6 @@ Together, these rules create the mesmerizing, organic-looking movement of a floc
 
 ## Code Structure
 
-* **`boids.html`**: The main file containing the page structure, canvas, and UI controls.
+* **`index.html`**: The main file containing the page structure, canvas, and UI controls.
 * **`boids.js`**: Contains the core application logic, including the `Boid` class and the animation loop.
 * **`style.css`**: Provides the styling for the page layout and UI elements.
