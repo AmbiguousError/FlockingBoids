@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('boids-canvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('simulation-container');
-    const mainContainer = document.querySelector('.container');
 
     let flock = [];
     let food = [];
@@ -13,9 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let animationFrameId;
 
     // --- UI CONTROLS ---
-    const uiPanel = document.getElementById('ui-panel');
-    const hideControlsBtn = document.getElementById('hide-controls-btn');
-    const showControlsBtn = document.getElementById('show-controls-btn');
     const separationSlider = document.getElementById('separation-slider');
     const alignmentSlider = document.getElementById('alignment-slider');
     const cohesionSlider = document.getElementById('cohesion-slider');
@@ -361,7 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function animate() {
-        // This is the simple, performant tracer effect on a dark background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
