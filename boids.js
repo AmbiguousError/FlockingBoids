@@ -31,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function resizeCanvas() {
         canvas.width = container.offsetWidth;
         canvas.height = container.offsetHeight;
-        if (fluid) {
-            fluid = new Fluid(canvas.width, canvas.height, 8);
-        }
+        // THE FIX: Always create a new Fluid object on resize/init to match canvas dimensions.
+        // The old "if (fluid)" check was preventing it from ever being created.
+        fluid = new Fluid(canvas.width, canvas.height, 8);
     }
     
     // --- FLUID CLASS ---
@@ -96,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         draw(mainCtx, mainWidth, mainHeight) {
-            // THIS IS THE FIX: The base fillStyle is now the light color
             mainCtx.fillStyle = '#f7f9f9';
             mainCtx.fillRect(0, 0, mainWidth, mainHeight);
             
@@ -439,7 +438,9 @@ document.addEventListener('DOMContentLoaded', () => {
         flock = Array.from({ length: flockSize }, () => new Boid());
         food = [];
         predators = predatorCheckbox.checked ? [new Predator()] : [];
-        if (!animationFrameId) animate();
+        if (!animationFrameId) {
+            animate();
+        }
     }
 
     function animate() {
