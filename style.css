@@ -53,6 +53,11 @@ label {
     vertical-align: middle;
 }
 
+.tooltip {
+    border-bottom: 1px dotted #777;
+    cursor: help;
+}
+
 
 input[type="range"] {
     width: 100%;
