@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('boids-canvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('simulation-container');
+    const uiPanel = document.getElementById('ui-panel');
+    const togglePanelBtn = document.getElementById('toggle-panel-btn');
 
     let flock = [];
     let food = [];
@@ -506,6 +508,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     canvas.addEventListener('click', (event) => {
         if (fluidCheckbox.checked) fluid.disturb(event.offsetX, event.offsetY, 500);
+    });
+
+    togglePanelBtn.addEventListener('click', () => {
+        uiPanel.classList.toggle('minimized');
+        // We need to wait for the CSS transition to finish before resizing the canvas
+        setTimeout(() => {
+            resizeCanvas();
+        }, 300); // 300ms matches the transition duration in style.css
     });
 
     init();
